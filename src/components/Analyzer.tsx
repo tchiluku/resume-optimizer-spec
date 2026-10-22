@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent } from "react";
 import { MAX_JD_CHARS, MAX_UPLOAD_BYTES, MIN_JD_CHARS } from "@/lib/limits";
+import type { LinkedInDraft } from "@/lib/linkedin/types";
 import type { Step1Report } from "@/lib/step1/types";
 import styles from "./Analyzer.module.css";
 
@@ -39,10 +40,15 @@ export default function Analyzer({ demoMode }: { demoMode: boolean }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [report, setReport] = useState<Step1Report | null>(null);
+  const [creatingLinkedInDraft, setCreatingLinkedInDraft] = useState(false);
+  const [linkedInDraftError, setLinkedInDraftError] = useState<string | null>(null);
+  const [linkedInDraft, setLinkedInDraft] = useState<{ draft: LinkedInDraft; mode: "ai" | "demo" } | null>(null);
 
   const jdLength = jobDescription.trim().length;
   const jdValid = jdLength >= MIN_JD_CHARS && jdLength <= MAX_JD_CHARS;
   const canAnalyze = resumeText !== null && resumeText.trim() !== "" && confirmed && jdValid && !analyzing;
+  const canCreateLinkedInDraft =
+    resumeText !== null && resumeText.trim() !== "" && confirmed && jdValid && !creatingLinkedInDraft;
 
   const blockers = [
     resumeText === null && "upload your resume",
@@ -56,6 +62,8 @@ export default function Analyzer({ demoMode }: { demoMode: boolean }) {
     setUploadError(null);
     setReport(null);
     setAnalyzeError(null);
+    setLinkedInDraftError(null);
+    setLinkedInDraft(null);
     if (file.size > MAX_UPLOAD_BYTES) {
       setUploadError("This file is larger than 5 MB. Please upload a smaller file.");
       return;
@@ -101,6 +109,30 @@ export default function Analyzer({ demoMode }: { demoMode: boolean }) {
       setAnalyzeError("The analysis failed. Check your connection and try again.");
     } finally {
       setAnalyzing(false);
+    }
+  }
+
+  async function onCreateLinkedInDraft() {
+    if (!canCreateLinkedInDraft || resumeText === null) return;
+    setCreatingLinkedInDraft(true);
+    setLinkedInDraftError(null);
+    setLinkedInDraft(null);
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ task: "linkedin", resumeText, jobDescription, confirmed: true }),
+      });
+      const body = await readJson(res);
+      if (!res.ok || !body?.draft || (body.mode !== "ai" && body.mode !== "demo")) {
+        setLinkedInDraftError(errorFrom(res, body, "The LinkedIn draft could not be created. Please try again."));
+        return;
+      }
+      setLinkedInDraft({ draft: body.draft as LinkedInDraft, mode: body.mode });
+    } catch {
+      setLinkedInDraftError("The LinkedIn draft failed. Check your connection and try again.");
+    } finally {
+      setCreatingLinkedInDraft(false);
     }
   }
 
@@ -169,6 +201,8 @@ export default function Analyzer({ demoMode }: { demoMode: boolean }) {
             onChange={(e) => {
               setResumeText(e.target.value);
               setConfirmed(false);
+              setLinkedInDraft(null);
+              setLinkedInDraftError(null);
             }}
           />
           <label className={styles.checkbox}>
@@ -189,7 +223,11 @@ export default function Analyzer({ demoMode }: { demoMode: boolean }) {
           rows={10}
           maxLength={MAX_JD_CHARS}
           value={jobDescription}
-          onChange={(e) => setJobDescription(e.target.value)}
+          onChange={(e) => {
+            setJobDescription(e.target.value);
+            setLinkedInDraft(null);
+            setLinkedInDraftError(null);
+          }}
           placeholder="Paste the full job posting here"
         />
         <p className={styles.hint}>
@@ -202,6 +240,14 @@ export default function Analyzer({ demoMode }: { demoMode: boolean }) {
         <button className={styles.button} type="button" onClick={onAnalyze} disabled={!canAnalyze}>
           Analyze resume
         </button>
+        <button
+          className={styles.button}
+          type="button"
+          onClick={onCreateLinkedInDraft}
+          disabled={!canCreateLinkedInDraft}
+        >
+          {creatingLinkedInDraft ? "Creating LinkedIn draft…" : "Create LinkedIn profile draft"}
+        </button>
         {blockers.length > 0 && !analyzing && <p className={styles.hint}>To continue: {blockers.join(", ")}.</p>}
         {analyzing && (
           <p className={styles.status} role="status">
@@ -213,10 +259,34 @@ export default function Analyzer({ demoMode }: { demoMode: boolean }) {
             {analyzeError}
           </p>
         )}
+        {linkedInDraftError && (
+          <p className={styles.error} role="alert">
+            {linkedInDraftError}
+          </p>
+        )}
       </div>
 
       {report && <Report report={report} />}
+      {linkedInDraft && <LinkedInDraftView {...linkedInDraft} />}
     </main>
+  );
+}
+
+function LinkedInDraftView({ draft, mode }: { draft: LinkedInDraft; mode: "ai" | "demo" }) {
+  return (
+    <section className={styles.card} aria-labelledby="linkedin-draft-heading">
+      <h2 id="linkedin-draft-heading">LinkedIn Profile Draft</h2>
+      {mode === "demo" && <p className={styles.badge}>Simulated LinkedIn draft (demo mode)</p>}
+      <h3>Headline</h3>
+      <p className={styles.linkedinHeadline}>{draft.headline}</p>
+      {draft.headlineError && (
+        <p className={styles.error} role="alert">
+          {draft.headlineError}
+        </p>
+      )}
+      <h3>About</h3>
+      <p className={styles.linkedinAbout}>{draft.about}</p>
+    </section>
   );
 }
 

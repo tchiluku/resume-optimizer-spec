@@ -1,8 +1,8 @@
 # Resume Keyword Check
 
-Upload a resume (PDF or Word), paste a job description, and get **Step 1: ATS & Keyword Gap Analysis**: the job's keywords your resume is missing, and your three weakest bullet points.
+Upload a resume (PDF or Word), paste a job description, and get **Step 1: ATS & Keyword Gap Analysis**: the job's keywords your resume is missing, and your three weakest bullet points. You can also create a LinkedIn headline and About draft grounded in those inputs (US-LI-1).
 
-This is the first slice of the Resume & LinkedIn Optimizer. What it does and doesn't do is in [docs/STORY_1.md](docs/STORY_1.md). The full product spec is in [docs/](docs/).
+This is the first slice of the Resume & LinkedIn Optimizer, with US-LI-1 added for HW3. What the first slice does and doesn't do is in [docs/STORY_1.md](docs/STORY_1.md). The full product spec is in [docs/](docs/).
 
 ## Run it on your Mac
 
@@ -119,3 +119,7 @@ Audit of every requirement in [docs/SECURITY_SPEC.md](docs/SECURITY_SPEC.md) aga
 | SEC-OPS-01 | Secrets from a secrets manager; CI blocks committed secrets | Partly | The key comes from an environment variable and `.env*` files are git-ignored, but there is no CI or secret scanning. |
 | SEC-OPS-02 | Lockfile, CI dependency scanning, 7-day patch SLA | Partly | `package-lock.json` pins dependencies and `npm audit` found 0 vulnerabilities at install, but there is no CI scanning or patch process. |
 | SEC-OPS-03 | SPF, DKIM and DMARC on sending domain | Not at all | The app sends no email. |
+
+## HW3 scope and non-goals
+
+This slice builds US-LI-1: a LinkedIn headline and About section. Real payments and real authentication are non-goals; where a signed-in name is needed, use a name typed into a text box. There is no database. Any data held in server memory is temporary and resets on every deploy.

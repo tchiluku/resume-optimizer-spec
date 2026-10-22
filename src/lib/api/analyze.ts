@@ -6,6 +6,9 @@ import {
   MIN_JD_CHARS,
 } from "@/lib/limits";
 import { RateLimiter } from "@/lib/rateLimit";
+import { demoLinkedInModel, anthropicLinkedInModel } from "@/lib/linkedin/models";
+import { runLinkedInDraft, type LinkedInRunOptions } from "@/lib/linkedin/run";
+import type { LinkedInErrorCode, LinkedInModel } from "@/lib/linkedin/types";
 import { anthropicModel } from "@/lib/step1/anthropic";
 import { demoModel } from "@/lib/step1/demo";
 import { runStep1, type RunOptions } from "@/lib/step1/run";
@@ -14,9 +17,11 @@ import { clientIp, errorResponse, FORBIDDEN_MESSAGE, json, originAllowed } from 
 
 export type AnalyzeDeps = {
   model: Step1Model;
+  linkedinModel?: LinkedInModel;
   hourlyLimiter: RateLimiter;
   dailyCap: RateLimiter;
   runOptions?: RunOptions;
+  linkedinRunOptions?: LinkedInRunOptions;
 };
 
 const STEP1_ERROR_STATUS: Record<Step1ErrorCode, number> = {
@@ -25,11 +30,17 @@ const STEP1_ERROR_STATUS: Record<Step1ErrorCode, number> = {
   ai_unavailable: 503,
 };
 
+const LINKEDIN_ERROR_STATUS: Record<LinkedInErrorCode, number> = {
+  refused: 422,
+  ai_unavailable: 503,
+  invalid_output: 502,
+};
+
 export function createAnalyzeHandler(deps: AnalyzeDeps) {
   return async function analyze(req: Request): Promise<Response> {
     if (!originAllowed(req)) return errorResponse(403, "forbidden", FORBIDDEN_MESSAGE);
 
-    let body: { resumeText?: unknown; jobDescription?: unknown; confirmed?: unknown };
+    let body: { task?: unknown; resumeText?: unknown; jobDescription?: unknown; confirmed?: unknown };
     try {
       body = (await req.json()) ?? {};
     } catch {
@@ -40,6 +51,8 @@ export function createAnalyzeHandler(deps: AnalyzeDeps) {
     if (body.confirmed !== true) {
       return errorResponse(400, "not_confirmed", "Please check the extracted resume text and confirm it before analysing.");
     }
+    const task = body.task ?? "step1";
+    if (task !== "step1" && task !== "linkedin") return errorResponse(400, "bad_request", "The requested task is not supported.");
     if (typeof body.resumeText !== "string" || typeof body.jobDescription !== "string") {
       return errorResponse(400, "bad_request", "The request could not be read.");
     }
@@ -59,15 +72,27 @@ export function createAnalyzeHandler(deps: AnalyzeDeps) {
 
     const hourly = deps.hourlyLimiter.take(clientIp(req));
     if (!hourly.allowed) {
-      return errorResponse(429, "rate_limited", "You've reached the limit of 10 analyses per hour. Please try again later.", {
+      return errorResponse(429, "rate_limited", "You've reached the limit of 10 requests per hour. Please try again later.", {
         "retry-after": String(hourly.retryAfterSeconds),
       });
     }
     const daily = deps.dailyCap.take("global");
     if (!daily.allowed) {
-      return errorResponse(503, "daily_cap_reached", "The analyzer has reached today's limit. Please try again tomorrow.", {
+      return errorResponse(503, "daily_cap_reached", "The service has reached today's limit. Please try again tomorrow.", {
         "retry-after": String(daily.retryAfterSeconds),
       });
+    }
+
+    if (task === "linkedin") {
+      if (!deps.linkedinModel) return errorResponse(503, "ai_unavailable", "The LinkedIn draft service is unavailable.");
+      try {
+        const outcome = await runLinkedInDraft({ resumeText, jobDescription }, deps.linkedinModel, deps.linkedinRunOptions);
+        if (outcome.ok) return json({ draft: outcome.draft, mode: deps.linkedinModel.mode });
+        return errorResponse(LINKEDIN_ERROR_STATUS[outcome.error.code], outcome.error.code, outcome.error.message);
+      } catch (e) {
+        console.error("linkedin: unexpected failure", e instanceof Error ? e.name : typeof e);
+        return errorResponse(500, "internal", "Something went wrong while creating the LinkedIn draft. Please try again.");
+      }
     }
 
     try {
@@ -88,6 +113,7 @@ export function defaultAnalyzeDeps(): AnalyzeDeps {
   const dailyLimit = Number(process.env.DAILY_ANALYSIS_CAP) || DEFAULT_DAILY_ANALYSIS_CAP;
   return {
     model: apiKey ? anthropicModel(apiKey) : demoModel,
+    linkedinModel: apiKey ? anthropicLinkedInModel(apiKey) : demoLinkedInModel,
     hourlyLimiter: new RateLimiter({ limit: ANALYSES_PER_HOUR_PER_VISITOR, windowMs: 60 * 60 * 1000 }),
     dailyCap: new RateLimiter({ limit: dailyLimit, windowMs: 24 * 60 * 60 * 1000 }),
   };

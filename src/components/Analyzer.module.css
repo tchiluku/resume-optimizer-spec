@@ -213,3 +213,15 @@
   background: var(--bg);
   white-space: pre-wrap;
 }
+
+.linkedinHeadline {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.linkedinAbout {
+  margin: 0;
+  line-height: 1.6;
+  white-space: pre-line;
+}

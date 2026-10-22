@@ -4,7 +4,7 @@ import type { Step1Context, Step1Prompt } from "./types";
 const DELIMITER_TAGS = /<(\/?)\s*(resume|job_description|bullets|bullet)\b/gi;
 
 /** Stops input text from opening or closing our delimiter blocks (SEC-LLM-01). */
-function neutralize(text: string): string {
+export function neutralizePromptData(text: string): string {
   return text.replace(DELIMITER_TAGS, "‹$1$2");
 }
 
@@ -16,15 +16,15 @@ Report only what the inputs support. Never invent skills, employers, credentials
 
 /** Builds the Step 1 request. Inputs go in separately delimited data blocks (SEC-LLM-01). */
 export function buildStep1Prompt(ctx: Step1Context): Step1Prompt {
-  const bullets = ctx.bullets.map((b) => `<bullet id="${b.id}">${neutralize(b.text)}</bullet>`).join("\n");
+  const bullets = ctx.bullets.map((b) => `<bullet id="${b.id}">${neutralizePromptData(b.text)}</bullet>`).join("\n");
   const weakCount = Math.min(WEAK_BULLET_COUNT, ctx.bullets.length);
 
   const user = `<resume>
-${neutralize(ctx.resumeText)}
+${neutralizePromptData(ctx.resumeText)}
 </resume>
 
 <job_description>
-${neutralize(ctx.jobDescription)}
+${neutralizePromptData(ctx.jobDescription)}
 </job_description>
 
 <bullets>

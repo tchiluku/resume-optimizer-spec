@@ -223,3 +223,10 @@ Each of these was **decided by me, not by you**. "Default Qn" means you accepted
 | A-36 | **A deliberate deviation from the prompt.** The prompt says to integrate the missing keywords "seamlessly". I only integrate keywords that the inputs give evidence for. The rest go to "Gaps to discuss with client". | Default Q7 ("preserve factual accuracy") | Without this, the product fabricates skills. |
 | A-37 | The report adds two sub-sections beyond the prompt's format: "Gaps to discuss with client" and "Unverified items". | Follows from A-36 and Q7 | — |
 | A-38 – A-41 | Security thresholds (lockout, sandbox limits, disposable-email blocklist, CVE patch SLA). | Inferred | See the end of `SECURITY_SPEC.md`. |
+
+## Scope for HW3
+
+- Build story US-LI-1: LinkedIn headline and About section.
+- No real payments. Where the spec says to charge a card, use a "Simulated payment" button and list real payments as a non-goal in the README.
+- No sign-in provider. Where the spec needs a signed-in user, use a name typed into a text box and list real authentication as a non-goal.
+- No database. Keep data in memory on the server and say in the README that it resets on every deploy.
