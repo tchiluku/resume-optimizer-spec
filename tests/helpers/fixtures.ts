@@ -201,10 +201,14 @@ export function makeManyEntriesDocx(count = 1001): Uint8Array {
 }
 
 /** Builds the multipart request a browser sends when uploading `bytes` under `filename`. */
-export function uploadRequest(bytes: Uint8Array, filename: string, opts: { type?: string; origin?: string } = {}): Request {
+export function uploadRequest(
+  bytes: Uint8Array,
+  filename: string,
+  opts: { type?: string; origin?: string; omitOrigin?: boolean } = {},
+): Request {
   const form = new FormData();
   form.append("file", new File([new Uint8Array(bytes)], filename, { type: opts.type ?? "application/octet-stream" }));
   const headers: Record<string, string> = { host: "localhost:3000" };
-  if (opts.origin) headers.origin = opts.origin;
+  if (!opts.omitOrigin) headers.origin = opts.origin ?? "http://localhost:3000";
   return new Request("http://localhost:3000/api/extract", { method: "POST", body: form, headers });
 }

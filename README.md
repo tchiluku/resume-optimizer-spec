@@ -60,7 +60,7 @@ Audit of every requirement in [docs/SECURITY_SPEC.md](docs/SECURITY_SPEC.md) aga
 | SEC-SESS-01 | Secure `__Host-` session cookie | Not at all | The app issues no cookies. |
 | SEC-SESS-02 | 30-min idle / 12-h absolute session expiry | Not at all | No sessions exist. |
 | SEC-SESS-03 | New session ID on sign-in and MFA | Not at all | No sessions exist. |
-| SEC-SESS-04 | Reject state-changing requests without CSRF token or with bad Origin | Partly | Both POST endpoints return 403 for a mismatched `Origin` (tested), but there is no CSRF token and requests with no `Origin` header are allowed. |
+| SEC-SESS-04 | Reject state-changing requests without CSRF token or with bad Origin | Partly | Both POST endpoints now reject requests with a missing, malformed, or cross-origin `Origin`, and accept matching same-origin requests (tested). A separate CSRF token is not implemented. |
 | SEC-SESS-05 | Server-side sign-out | Not at all | No sessions exist. |
 | SEC-AZ-01 | Server-side ownership check on every object | Not at all | Nothing is stored, so there are no objects or owners to check. |
 | SEC-AZ-02 | 404 and audit event for cross-tenant access | Not at all | No tenants, stored objects or audit log exist. |

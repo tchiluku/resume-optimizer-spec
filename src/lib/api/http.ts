@@ -1,7 +1,7 @@
-/** Rejects cross-site POSTs (SEC-SESS-04): if the browser sent an Origin, it must match this site. */
+/** Rejects state-changing requests without a matching Origin (SEC-SESS-04). */
 export function originAllowed(req: Request): boolean {
   const origin = req.headers.get("origin");
-  if (!origin) return true;
+  if (!origin) return false;
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   try {
     return new URL(origin).host === host;
@@ -25,4 +25,4 @@ export function errorResponse(status: number, code: string, message: string, hea
   return json({ error: { code, message } }, status, headers);
 }
 
-export const FORBIDDEN_MESSAGE = "This request came from another website and was blocked.";
+export const FORBIDDEN_MESSAGE = "This request is missing a valid same-origin check and was blocked.";

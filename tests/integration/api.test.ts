@@ -44,10 +44,18 @@ function makeHandler(opts: { model?: Step1Model; hourly?: number; daily?: number
   });
 }
 
-function analyzeRequest(body: unknown, headers: Record<string, string> = {}): Request {
+function analyzeRequest(body: unknown, headers: Record<string, string> = {}, includeOrigin = true): Request {
+  const requestHeaders: Record<string, string> = {
+    "content-type": "application/json",
+    host: "localhost:3000",
+    "x-forwarded-for": "203.0.113.7",
+    origin: "http://localhost:3000",
+    ...headers,
+  };
+  if (!includeOrigin) delete requestHeaders.origin;
   return new Request("http://localhost:3000/api/analyze", {
     method: "POST",
-    headers: { "content-type": "application/json", host: "localhost:3000", "x-forwarded-for": "203.0.113.7", ...headers },
+    headers: requestHeaders,
     body: JSON.stringify(body),
   });
 }
@@ -57,6 +65,14 @@ const goodBody = { resumeText: RESUME_TEXT, jobDescription: JOB_DESCRIPTION, con
 afterEach(() => vi.restoreAllMocks());
 
 describe("POST /api/extract", () => {
+  it("rejects POST requests with a missing Origin header", async () => {
+    const extractResponse = await handleExtract(uploadRequest(await makePdf(), "resume.pdf", { omitOrigin: true }));
+    const analyzeResponse = await makeHandler()(analyzeRequest(goodBody, {}, false));
+
+    expect(extractResponse.status).toBe(403);
+    expect(analyzeResponse.status).toBe(403);
+  });
+
   it("test_extract_endpoint_returns_text_for_valid_upload", async () => {
     const res = await handleExtract(uploadRequest(await makePdf(), "resume.pdf", { type: "application/pdf", origin: "http://localhost:3000" }));
     expect(res.status).toBe(200);
@@ -83,7 +99,11 @@ describe("POST /api/extract", () => {
   });
 
   it("test_extract_without_file_is_rejected", async () => {
-    const req = new Request("http://localhost:3000/api/extract", { method: "POST", body: new FormData(), headers: { host: "localhost:3000" } });
+    const req = new Request("http://localhost:3000/api/extract", {
+      method: "POST",
+      body: new FormData(),
+      headers: { host: "localhost:3000", origin: "http://localhost:3000" },
+    });
     const res = await handleExtract(req);
     expect(res.status).toBe(400);
     expect((await res.json()).error.code).toBe("no_file");

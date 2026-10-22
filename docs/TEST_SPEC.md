@@ -190,7 +190,7 @@ The model is non-deterministic, so the tests use three layers:
 | SEC-SESS-01 | `test_session_cookie_flags_and_host_prefix` | I | — |
 | SEC-SESS-02 | `test_session_idle_30m_and_absolute_12h_expiry` | I | — |
 | SEC-SESS-03 | `test_session_id_rotates_on_login_and_mfa` | I | — |
-| SEC-SESS-04 | `test_csrf_missing_token_or_bad_origin_rejected` | I | — |
+| SEC-SESS-04 | `rejects POST requests with a missing Origin header` | I | Both state-changing endpoints return 403 when the request has no `Origin`; matching same-origin requests are accepted and cross-origin requests are rejected |
 | SEC-SESS-05 | `test_logout_invalidates_server_session` | I | Replaying the old cookie returns 401 |
 
 ### SEC-AZ
